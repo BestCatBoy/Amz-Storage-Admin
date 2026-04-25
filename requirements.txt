@@ -1,0 +1,8 @@
+fastapi
+starlette-admin
+sqlalchemy[asyncio]
+asyncpg
+granian
+python-multipart
+itsdangerous
+faker
