@@ -11,7 +11,6 @@
     docker compose up --build -d
     ```
 2.  **Генерация тестовых данных:**
-    Чтобы заполнить базу данных случайными заказами, выполните:
     ```bash
     docker compose exec app python seed.py
     ```
