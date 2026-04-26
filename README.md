@@ -10,17 +10,9 @@
     ```bash
     docker compose up --build -d
     ```
-2.  **Генерация тестовых данных:**
-    Чтобы заполнить базу данных случайными заказами, выполните:
+2.  **Проведение миграций:**
     ```bash
-    docker compose exec app python seed.py
+    docker-compose exec app alembic upgrade head
     ```
 3.  **Доступ к админ-панели:**
     [http://localhost:8000/admin](http://localhost:8000/admin)
-
-
-## 🔐 Данные для входа
-| Поле | Значение |
-| :--- | :--- |
-| **Логин** | `admin` |
-| **Пароль** | `secret` |

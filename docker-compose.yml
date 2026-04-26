@@ -2,17 +2,16 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: my_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: arzmachbp
+      POSTGRES_DB: postgres
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d my_db"]
+      test: ["CMD-SHELL", "pg_isready -U admin -d postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
     volumes:
       - pg_data:/var/lib/postgresql/data
 
@@ -21,12 +20,13 @@ services:
     command: granian main:app --interface asgi --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://user:password@db:5432/my_db
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
-    restart: unless-stopped
+    volumes:
+      - .:/app
 
 volumes:
   pg_data:

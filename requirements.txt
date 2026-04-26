@@ -6,3 +6,4 @@ granian
 python-multipart
 itsdangerous
 faker
+alembic
