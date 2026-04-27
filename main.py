@@ -10,7 +10,7 @@ from admin import create_admin
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-app = FastAPI(default_response_class=ORJSONResponse)
+app = FastAPI(default_response_class=ORJSONResponse, debug=True)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
 admin = create_admin(engine)

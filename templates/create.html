@@ -1,0 +1,151 @@
+{% extends "layout.html" %}
+{% block header %}
+    <div class="d-flex justify-content-between align-items-center">
+        <h1>{{ model.label }}</h1>
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{{ url_for(__name__ ~ ':index') }}">{{ _("Admin") }}</a>
+            </li>
+            <li class="breadcrumb-item">
+                {{ model.label }}</a>
+            </li>
+            <li class="breadcrumb-item active">{{ _("Create") }}</li>
+        </ol>
+    </div>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <form id="batch-form" action="{{ request.url | safe }}" method="POST" enctype="multipart/form-data">
+                        <div class="card-header">
+                            <div class="container-fluid">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h3 class="card-title">{{ _("New %(name)s", name=model.name ) }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body border-bottom py-3">
+                            {% block create_form %}
+                                {% for field in model.get_fields_list(request, 'CREATE' | ra) %}
+                                    <div class="mb-3 field-container" data-field-name="{{ field.name }}">
+                                        {% with action=('CREATE'| ra), data=(None if not obj else obj[field.name]), error=errors.get(field.name, None) if errors else None %}
+                                            {% include field.label_template %}
+                                            {% include field.form_template %}
+                                        {% endwith %}
+                                    </div>
+                                {% endfor %}
+                            {% endblock %}
+                        </div>
+                        <div class="card-footer text-black">
+                            <div class="btn-list ms-auto justify-content-end">
+                                {{ _("Cancel") }}</a>
+                                <button type="submit" name="_add_another" class="btn">{{ _("Save and add another") }}</button>
+                                <button type="submit" name="_continue_editing" class="btn">{{ _("Save and continue editing") }}</button>
+                                <button type="submit" class="btn btn-success">{{ _("Save") }}</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block head_css %}
+    {{ super() }}
+    {% for link in model._additional_css_links(request, "CREATE" | ra) %}
+        <link rel="stylesheet" href="{{ link }}">
+    {% endfor %}
+    <style>
+        .is-invalid .select2-selection { border-color: #d63939 !important; }
+        .pivot-table th { background: #f4f6fa; font-size: 0.8rem; text-transform: uppercase; }
+    </style>
+{% endblock %}
+
+{% block script %}
+    {{ super() }}
+    <script type="text/javascript" src="{{ url_for(__name__ ~ ':statics', path='js/form.js') }}"></script>
+    {% for link in model._additional_js_links(request, "CREATE" | ra) %}
+        <script type="text/javascript" src="{{ link }}"></script>
+    {% endfor %}
+
+    <script>
+    $(document).ready(function() {
+        // 1. Ищем контейнер нашего JSON поля
+        const fieldName = "items_data"; // Должно совпадать с JSONField в BatchView
+        const $container = $(`.field-container[data-field-name="${fieldName}"]`);
+        const $realInput = $container.find('input, textarea').first();
+
+        if ($container.length) {
+            // Прячем стандартный ввод
+            $realInput.hide();
+
+            // Создаем каркас таблицы
+            const tableHtml = `
+                <div class="border rounded p-3 bg-light">
+                    <table class="table table-sm table-bordered pivot-table">
+                        <thead>
+                            <tr>
+                                <th>Номенклатура</th>
+                                <th style="width: 120px;">Кол-во</th>
+                                <th style="width: 40px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="pivot-body"></tbody>
+                    </table>
+                    <button type="button" class="btn btn-sm btn-primary" id="add-pivot-row">+ Добавить товар</button>
+                </div>
+            `;
+            $container.append(tableHtml);
+
+            function addRow(val = null, qty = 1) {
+                const rowId = 'row_' + Math.random().toString(36).substr(2, 9);
+                const row = `
+                    <tr id="${rowId}">
+                        <td><select class="form-control select-nom" required style="width:100%"></select></td>
+                        <td><input type="number" step="0.1" class="form-control input-qty" value="${qty}" required></td>
+                        <td><button type="button" class="btn btn-sm text-danger btn-remove-row">×</button></td>
+                    </tr>
+                `;
+                $('#pivot-body').append(row);
+
+                const $select = $(`#${rowId} .select-nom`);
+                
+                // Инициализируем Select2 с поиском по Nomenclature
+                $select.select2({
+                    ajax: {
+                        url: '/admin/api/nomenclature', // Проверь identity своей вьюхи Nomenclature
+                        dataType: 'json',
+                        delay: 250,
+                        data: function(params) { return { search: params.term, skip: 0, limit: 100 }; },
+                        processResults: function(data) {
+                            return { results: data.items.map(i => ({id: i.id, text: i.label || i.name})) };
+                        }
+                    },
+                    placeholder: "Выбрать товар..."
+                });
+
+                // При любом изменении обновляем скрытый JSON
+                $select.on('change', sync);
+                $(`#${rowId} .input-qty`).on('input', sync);
+                $(`#${rowId} .btn-remove-row`).on('click', function() { $(this).closest('tr').remove(); sync(); });
+            }
+
+            function sync() {
+                const data = [];
+                $('#pivot-body tr').each(function() {
+                    const id = $(this).find('.select-nom').val();
+                    const q = $(this).find('.input-qty').val();
+                    if (id) data.push({ nomenclature_id: parseInt(id), quantity: parseFloat(q) });
+                });
+                $realInput.val(JSON.stringify(data));
+            }
+
+            $('#add-pivot-row').click(() => addRow());
+        }
+    });
+    </script>
+{% endblock %}
