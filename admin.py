@@ -19,11 +19,11 @@ class NomenclatureView(ModelView):
     label = "Номенклатура"
 
     async def find_all(self, request, skip=0, limit=100, where=None, order_by=None):
-        print("\n" + "="*50, flush=True)
-        print(f"URL: {request.url}", flush=True)
-        print(f"METHOD: {request.method}", flush=True)
-        print(f"QUERY PARAMS: {dict(request.query_params)}", flush=True)
-        print("="*50 + "\n", flush=True)
+##        print("\n" + "="*50, flush=True)
+##        print(f"URL: {request.url}", flush=True)
+##        print(f"METHOD: {request.method}", flush=True)
+##        print(f"QUERY PARAMS: {dict(request.query_params)}", flush=True)
+##        print("="*50 + "\n", flush=True)
 
         return await super().find_all(request, skip, limit, where, order_by)
 
