@@ -7,7 +7,7 @@
                 <a href="{{ url_for(__name__ ~ ':index') }}">{{ _("Admin") }}</a>
             </li>
             <li class="breadcrumb-item">
-                {{ model.label }}</a>
+                {{ model.label }}
             </li>
             <li class="breadcrumb-item active">{{ _("Create") }}</li>
         </ol>
@@ -41,7 +41,7 @@
                         </div>
                         <div class="card-footer text-black">
                             <div class="btn-list ms-auto justify-content-end">
-                                {{ _("Cancel") }}</a>
+                                <a href="/admin/{{ model.identity }}/list" class="btn">{{ _("Cancel") }}</a>
                                 <button type="submit" name="_add_another" class="btn">{{ _("Save and add another") }}</button>
                                 <button type="submit" name="_continue_editing" class="btn">{{ _("Save and continue editing") }}</button>
                                 <button type="submit" class="btn btn-success">{{ _("Save") }}</button>
@@ -74,22 +74,19 @@
 
     <script>
     $(document).ready(function() {
-        // 1. Ищем контейнер нашего JSON поля
-        const fieldName = "items_data"; // Должно совпадать с JSONField в BatchView
+        const fieldName = "items_data";
         const $container = $(`.field-container[data-field-name="${fieldName}"]`);
         const $realInput = $container.find('input, textarea').first();
 
         if ($container.length) {
-            // Прячем стандартный ввод
             $realInput.hide();
 
-            // Создаем каркас таблицы
             const tableHtml = `
                 <div class="border rounded p-3 bg-light">
                     <table class="table table-sm table-bordered pivot-table">
                         <thead>
                             <tr>
-                                <th>Номенклатура</th>
+                                <th>Товар (со склада)</th>
                                 <th style="width: 120px;">Кол-во</th>
                                 <th style="width: 40px;"></th>
                             </tr>
@@ -106,32 +103,90 @@
                 const row = `
                     <tr id="${rowId}">
                         <td><select class="form-control select-nom" required style="width:100%"></select></td>
-                        <td><input type="number" step="0.1" class="form-control input-qty" value="${qty}" required></td>
+                        <td><input type="number" step="0.1" min="0" class="form-control input-qty" value="${qty}" required></td>
                         <td><button type="button" class="btn btn-sm text-danger btn-remove-row">×</button></td>
                     </tr>
                 `;
                 $('#pivot-body').append(row);
 
                 const $select = $(`#${rowId} .select-nom`);
-                
-                // Инициализируем Select2 с поиском по Nomenclature
+                const $inputQty = $(`#${rowId} .input-qty`);
+
                 $select.select2({
                     ajax: {
-                        url: '/admin/api/nomenclature', // Проверь identity своей вьюхи Nomenclature
+                        url: '/admin/api/stock_item',
                         dataType: 'json',
                         delay: 250,
-                        data: function(params) { return { search: params.term, skip: 0, limit: 100 }; },
+                         function(params) {
+                            return { search: params.term, skip: 0, limit: 100 };
+                        },
                         processResults: function(data) {
-                            return { results: data.items.map(i => ({id: i.id, text: i.label || i.name})) };
+                            return {
+                                results: data.items.map(i => {
+                                    const item = i.item;
+                                    // Важно: передаем количество со склада в объекте результата
+                                    // чтобы потом можно было его достать при выборе
+                                    if (!item) return null;
+                                    return {
+                                        id: item.id,
+                                        text: `${item.name} (${item.sku})`,
+                                        stock_qty: i.quantity || 0 // Берем количество из StockItem
+                                    };
+                                }).filter(x => x !== null)
+                            };
                         }
                     },
                     placeholder: "Выбрать товар..."
                 });
 
-                // При любом изменении обновляем скрытый JSON
-                $select.on('change', sync);
-                $(`#${rowId} .input-qty`).on('input', sync);
-                $(`#${rowId} .btn-remove-row`).on('click', function() { $(this).closest('tr').remove(); sync(); });
+                // Когда товар выбран
+                $select.on('change', function() {
+                    const selectedOption = $(this).select2('data')[0];
+                    if (selectedOption && selectedOption.stock_qty !== undefined) {
+                        const maxQty = parseFloat(selectedOption.stock_qty);
+                        // Сохраняем лимит в атрибут data
+                        $inputQty.attr('data-max-qty', maxQty);
+                        $inputQty.attr('max', maxQty);
+
+                        // Если текущее значение больше лимита, обрезаем
+                        let currentVal = parseFloat($inputQty.val()) || 0;
+                        if (currentVal > maxQty) {
+                            $inputQty.val(maxQty);
+                        }
+                        // Если лимит 0, ставим 0
+                        if (maxQty === 0) {
+                            $inputQty.val(0);
+                        }
+                    } else {
+                        // Если данные не загрузились, сбрасываем лимит
+                        $inputQty.removeAttr('data-max-qty');
+                    }
+                    sync();
+                });
+
+                // При ручном изменении количества
+                $inputQty.on('input change', function() {
+                    const maxQty = parseFloat($(this).attr('data-max-qty'));
+                    let val = parseFloat($(this).val());
+
+                    if (!isNaN(maxQty) && val > maxQty) {
+                        // Можно добавить визуальное предупреждение, но пока просто обрежем
+                        $(this).val(maxQty);
+                        val = maxQty;
+                    }
+
+                    if (val < 0) {
+                        $(this).val(0);
+                        val = 0;
+                    }
+
+                    sync();
+                });
+
+                $(`#${rowId} .btn-remove-row`).on('click', function() {
+                    $(this).closest('tr').remove();
+                    sync();
+                });
             }
 
             function sync() {
@@ -139,7 +194,9 @@
                 $('#pivot-body tr').each(function() {
                     const id = $(this).find('.select-nom').val();
                     const q = $(this).find('.input-qty').val();
-                    if (id) data.push({ nomenclature_id: parseInt(id), quantity: parseFloat(q) });
+                    if (id) {
+                        data.push({ item_id: parseInt(id), quantity: parseFloat(q) });
+                    }
                 });
                 $realInput.val(JSON.stringify(data));
             }

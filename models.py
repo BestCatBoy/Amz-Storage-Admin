@@ -21,8 +21,8 @@ class Customer(Base):
     email = Column(String(100))
     address = Column(Text)
 
-class Nomenclature(Base):
-    __tablename__ = "nomenclature"
+class Item(Base):
+    __tablename__ = "items"
     id = Column(Integer, primary_key=True)
     sku = Column(String(50), unique=True, index=True, nullable=False)
     name = Column(String(255), nullable=False)
@@ -31,13 +31,13 @@ class Nomenclature(Base):
 
     unit = relationship("Unit", lazy="joined")
 
-class Storage(Base):
-    __tablename__ = "storage"
+class StockItem(Base):
+    __tablename__ = "stock_items"
     id = Column(Integer, primary_key=True)
-    nomenclature_id = Column(Integer, ForeignKey("nomenclature.id"), unique=True)
+    item_id = Column(Integer, ForeignKey("items.id"), unique=True)
     quantity = Column(Float, default=0.0)
 
-    item = relationship("Nomenclature", lazy="joined")
+    item = relationship("Item", lazy="joined")
 
 class Batch(Base):
     __tablename__ = "batches"
@@ -53,8 +53,8 @@ class BatchItem(Base):
     __tablename__ = "batch_items"
     id = Column(Integer, primary_key=True)
     batch_id = Column(Integer, ForeignKey("batches.id"))
-    nomenclature_id = Column(Integer, ForeignKey("nomenclature.id"))
+    item_id = Column(Integer, ForeignKey("items.id"))
     quantity = Column(Float, nullable=False)
 
     batch = relationship("Batch", back_populates="items")
-    item = relationship("Nomenclature", lazy="joined")
+    item = relationship("Item", lazy="joined")
