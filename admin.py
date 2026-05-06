@@ -38,11 +38,15 @@ class StockItemView(ModelView):
 class BatchView(ModelView):
     identity = "batch"
     label = "Партии"
+
+    fields_list = ["public_id", "status"]
+
     fields = [
         "id",
         StringField("public_id", read_only=True, label="UUID"),
         "customer",
-        TextAreaField("items_data", label="Состав партии")
+        TextAreaField("items_data", label="Состав партии"),
+        "status"
     ]
 
     exclude_fields_from_create = ["public_id", "status"]
@@ -91,7 +95,7 @@ def create_admin(engine: AsyncEngine) -> Admin:
     admin.add_view(BatchView(Batch))
     admin.add_view(BatchItemView(BatchItem))
 
-    ##provider = MyAuthProvider()
-    ##provider.setup_admin(admin)
+    provider = MyAuthProvider()
+    provider.setup_admin(admin)
 
     return admin
