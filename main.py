@@ -32,7 +32,7 @@ async def download_qr(pk: int):
         if not obj or not obj.public_id:
             raise HTTPException(status_code=404, detail="Batch not found")
 
-        confirm_url = f"http://{BASE_DOMAIN}/admin/batch/confirm/{obj.public_id}"
+        confirm_url = f"http://{BASE_DOMAIN}:9000/admin/batch/confirm/{obj.public_id}"
 
         qr = qrcode.QRCode(version=1, box_size=10, border=5)
         qr.add_data(confirm_url)
